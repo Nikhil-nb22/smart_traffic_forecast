@@ -200,3 +200,7 @@ htmlcov/
 
 # Pytest
 .pytest_cache/
+
+# CSV data files
+*.csv
+routes_sample.csv
