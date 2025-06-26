@@ -1,1 +1,75 @@
-backend\venv
+# Python/Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.env
+*.env.*
+.env*
+*.egg-info/
+dist/
+build/
+*.egg
+*.eggs/
+*.whl
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+*.sqlite3
+media/
+staticfiles/
+
+# Virtual environment
+venv/
+.env/
+env/
+*.venv/
+
+# IDE/Editor
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Database
+*.sql
+*.sql.gz
+
+# Machine learning model files
+backend/traffic_model/traffic_model.pkl
+backend/traffic_model/road_id_encoder.pkl
+
+# Miscellaneous
+*.bak
+*.cache
+*.pid
+*.seed
+*.pid.lock
+*.tmp
+tmp/
+temp/
+.cache/
+.coverage
+.coverage.*
+.tox/
+.nox/
+*.pot
+*.mo
+*.po~
+*.pid
+*.seed
+*.pid.lock
