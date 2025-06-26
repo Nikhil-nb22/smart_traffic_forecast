@@ -1,138 +1,68 @@
-# E:\It Softlab Projects\smart_traffic\backend\routes\views.py
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.conf import settings
-import osmnx as ox
+import requests
 import pandas as pd
 import pickle
 from datetime import datetime
-import networkx as nx
-import os
-import time
-
-# Global graph cache
-G = None
-def load_graph(network_type='drive'):
-    global G
-    ox.settings.use_cache = True
-    ox.settings.cache_folder = os.path.join(settings.BASE_DIR, 'cache')
-    print("Loading graph...")
-    start_time = time.time()
-    G = ox.graph_from_place('Indore, India', network_type=network_type)
-    print(f"Graph loaded: {time.time() - start_time:.2f}s")
-
-# Load graph at startup
-load_graph()
 
 class RouteView(APIView):
     def post(self, request):
-        start_time = time.time()
-        print(f"Request start: {time.time() - start_time:.2f}s")
         try:
-            source = tuple(map(float, request.data['source'].split(',')))
-            dest = tuple(map(float, request.data['destination'].split(',')))
+            source = request.data['source']
+            destination = request.data['destination']
+            travel_mode = request.data.get('travel_mode', 'car')
             date_time = datetime.fromisoformat(request.data['date_time'].replace('Z', '+05:30'))
-            travel_mode = request.data.get('travel_mode', 'drive')
-            print(f"Input parsed: {time.time() - start_time:.2f}s")
-        except (KeyError, ValueError) as e:
-            print(f"Error: {str(e)} at {time.time() - start_time:.2f}s")
-            return Response({"error": "Invalid input data"}, status=400)
-
-        network_types = {'drive': 'drive', 'bike': 'bike', 'walk': 'walk'}
-        network_type = network_types.get(travel_mode, 'drive')
-        print(f"Network type: {network_type} at {time.time() - start_time:.2f}s")
+        except:
+            return Response({'error': 'Invalid input format'}, status=400)
 
         try:
-            print(f"Graph ready: {time.time() - start_time:.2f}s")
-            edges = ox.graph_to_gdfs(G, nodes=False, edges=True)
-            print(f"Edges conversion: {time.time() - start_time:.2f}s")
+            src_lat, src_lon = map(float, source.split(','))
+            dst_lat, dst_lon = map(float, destination.split(','))
+        except:
+            return Response({'error': 'Invalid coordinates'}, status=400)
+
+        # OSRM URL with alternatives=true
+        osrm_url = (
+            f"http://localhost:5000/route/v1/{travel_mode}/"
+            f"{src_lon},{src_lat};{dst_lon},{dst_lat}"
+            f"?overview=full&geometries=geojson&alternatives=true"
+        )
+
+        try:
+            res = requests.get(osrm_url)
+            data = res.json()
+            if 'routes' not in data or not data['routes']:
+                return Response({'error': 'No routes found'}, status=404)
         except Exception as e:
-            print(f"Error: {str(e)} at {time.time() - start_time:.2f}s")
-            return Response({"error": f"Failed to load map data: {str(e)}"}, status=500)
+            return Response({'error': f'OSRM error: {str(e)}'}, status=500)
 
+        # Load ML model & encoder
         try:
-            model_path = os.path.join(settings.BASE_DIR, 'traffic_model', 'traffic_model.pkl')
-            encoder_path = os.path.join(settings.BASE_DIR, 'traffic_model', 'road_id_encoder.pkl')
-            with open(model_path, 'rb') as f:
+            with open('traffic_model/traffic_model.pkl', 'rb') as f:
                 model = pickle.load(f)
-            with open(encoder_path, 'rb') as f:
+            with open('traffic_model/road_id_encoder.pkl', 'rb') as f:
                 le = pickle.load(f)
-            print(f"Model loaded: {time.time() - start_time:.2f}s")
-        except FileNotFoundError as e:
-            print(f"Error: {str(e)} at {time.time() - start_time:.2f}s")
-            return Response({"error": "Model files not found"}, status=500)
+        except FileNotFoundError:
+            return Response({'error': 'ML model files not found'}, status=500)
 
-        try:
-            origin = ox.nearest_nodes(G, source[1], source[0])
-            destination = ox.nearest_nodes(G, dest[1], dest[0])
-            print(f"Nearest nodes found: {time.time() - start_time:.2f}s")
-        except Exception as e:
-            print(f"Error: {str(e)} at {time.time() - start_time:.2f}s")
-            return Response({"error": f"Invalid coordinates: {str(e)}"}, status=400)
+        speed_multiplier = {'car': 1.0, 'bike': 0.5, 'foot': 0.1}.get(travel_mode, 1.0)
 
-        routes = []
-        try:
-            route_shortest = ox.shortest_path(G, origin, destination, weight='length')
-            if route_shortest:
-                routes.append(('Shortest Distance', route_shortest))
-            print(f"Shortest path computed: {time.time() - start_time:.2f}s")
-
-            def get_k_shortest_paths(G, source, target, k):
-                paths = []
-                G_temp = G.copy()
-                try:
-                    for i in range(k):
-                        try:
-                            path = nx.shortest_path(G_temp, source, target, weight=lambda u, v, d: d[0].get('length', 1) * (1 + 0.1 * i))
-                            edge_path = [(u, v, min(G[u][v], key=lambda k: G[u][v][k]['length'])) for u, v in zip(path[:-1], path[1:])]
-                            if not any(set(edge_path) == set(existing_path) for _, existing_path in paths):
-                                paths.append((f'Alternative Route {len(paths) + 1}', path))
-                                for u, v, key in edge_path:
-                                    G_temp.remove_edge(u, v, key)
-                        except nx.NetworkXNoPath:
-                            break
-                except nx.NetworkXNoPath:
-                    pass
-                return paths
-
-            alternative_paths = get_k_shortest_paths(G, origin, destination, k=3)
-            for name, path in alternative_paths:
-                if path not in [p for _, p in routes]:
-                    routes.append((name, path))
-            print(f"Alternative paths computed: {time.time() - start_time:.2f}s")
-
-            for name, path in routes:
-                print(f"{name}: {path}")
-        except nx.NetworkXNoPath:
-            print(f"Error: No route found at {time.time() - start_time:.2f}s")
-            return Response({"error": "No route found"}, status=404)
-
-        if not routes:
-            print(f"Error: No routes found at {time.time() - start_time:.2f}s")
-            return Response({"error": "No routes found"}, status=404)
-
-        speed_multipliers = {'drive': 1.0, 'bike': 0.5, 'walk': 0.1}
-        speed_multiplier = speed_multipliers.get(travel_mode, 1.0)
-        print(f"Speed multiplier applied: {time.time() - start_time:.2f}s")
-
-        route_results = []
-        for route_name, route in routes[:3]:
-            total_distance = 0
-            total_time = 0
+        all_routes = []
+        for i, route in enumerate(data['routes']):
+            coordinates = route['geometry']['coordinates']
             segments = []
-            for u, v in zip(route[:-1], route[1:]):
-                edge_data = None
-                if G.has_edge(u, v):
-                    edge_data = G.get_edge_data(u, v, 0)
-                if not edge_data:
-                    continue
-                osm_id = edge_data.get('osmid', 0)
-                if isinstance(osm_id, list):
-                    osm_id = osm_id[0]
+            total_dist = 0
+            total_time = 0
 
+            for j in range(len(coordinates) - 1):
+                lon1, lat1 = coordinates[j]
+                lon2, lat2 = coordinates[j + 1]
+
+                # Fake road_id to match with your ML encoder
+                fake_road_id = f"{round(lat1, 5)}_{round(lon1, 5)}"
                 try:
-                    road_id_encoded = le.transform([str(osm_id)])[0] if str(osm_id) in le.classes_ else le.transform([le.classes_[0]])[0]
-                except ValueError:
+                    road_id_encoded = le.transform([fake_road_id])[0]
+                except:
                     road_id_encoded = le.transform([le.classes_[0]])[0]
 
                 features = pd.DataFrame({
@@ -142,47 +72,40 @@ class RouteView(APIView):
                 })
 
                 speed = max(model.predict(features)[0] * speed_multiplier, 5)
-                try:
-                    road_type = edge_data.get('highway', 'road')
-                    max_speed = {'motorway': 80, 'primary': 60, 'secondary': 50, 'residential': 30}.get(road_type, 50)
-                    congestion = 'red' if speed < max_speed * 0.4 else 'yellow' if speed < max_speed * 0.7 else 'green'
-                except:
-                    congestion = 'yellow'
 
-                try:
-                    edge = edges.loc[(u, v, 0)]
-                    coords = edge['geometry'].coords
-                    length_m = edge.get('length', 0)
-                except KeyError:
-                    continue
+                # Approximate distance using flat-Earth method
+                dx = (lon2 - lon1) * 111.32 * 1000
+                dy = (lat2 - lat1) * 110.57 * 1000
+                dist = (dx**2 + dy**2) ** 0.5
+                time_hr = dist / 1000 / speed
 
-                segment_time = (length_m / 1000) / speed if speed > 0 else 0
-                total_distance += length_m
-                total_time += segment_time
+                congestion = 'red' if speed < 15 else 'yellow' if speed < 30 else 'green'
 
                 segments.append({
-                    'road_id': osm_id,
-                    'latitude_start': coords[0][1],
-                    'longitude_start': coords[0][0],
-                    'latitude_end': coords[-1][1],
-                    'longitude_end': coords[-1][0],
+                    'latitude_start': lat1,
+                    'longitude_start': lon1,
+                    'latitude_end': lat2,
+                    'longitude_end': lon2,
                     'speed_kmh': round(speed, 1),
                     'congestion_level': congestion,
-                    'length_m': round(length_m, 1),
-                    'travel_time_min': round(segment_time * 60, 1)
+                    'length_m': round(dist, 1),
+                    'travel_time_min': round(time_hr * 60, 1)
                 })
 
-            route_results.append({
-                'route_name': route_name,
-                'total_distance_km': round(total_distance / 1000, 2),
+                total_dist += dist
+                total_time += time_hr
+
+            all_routes.append({
+                'route_name': f"Route {i + 1}",
+                'total_distance_km': round(total_dist / 1000, 2),
                 'total_time_min': round(total_time * 60, 1),
-                'segments': segments
+                'segments': segments,
+                'recommended': False
             })
-            print(f"Route {route_name} processed: {time.time() - start_time:.2f}s")
 
-        route_results.sort(key=lambda x: x['total_time_min'])
-        if route_results:
-            route_results[0]['recommended'] = True
-        print(f"Response built: {time.time() - start_time:.2f}s")
+        # Sort and mark the best (fastest) route
+        all_routes.sort(key=lambda r: r['total_time_min'])
+        if all_routes:
+            all_routes[0]['recommended'] = True
 
-        return Response(route_results)
+        return Response(all_routes)
