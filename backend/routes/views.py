@@ -9,7 +9,7 @@ from datetime import datetime
 import networkx as nx
 import os
 import time
-
+import osmnx.distance as distance
 # Global graph cache
 G = None
 def load_graph(network_type='drive'):
@@ -19,6 +19,7 @@ def load_graph(network_type='drive'):
     print("Loading graph...")
     start_time = time.time()
     G = ox.graph_from_place('Indore, India', network_type=network_type)
+    G = distance.add_edge_lengths(G)
     print(f"Graph loaded: {time.time() - start_time:.2f}s")
 
 # Load graph at startup
