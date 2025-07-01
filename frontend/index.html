@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Traffic Prediction - Indore</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron&family=Quicksand&display=swap" rel="stylesheet" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: #0a0a0a;
+      color: #fff;
+      font-family: 'Quicksand', sans-serif;
+    }
+
+    header {
+      background: linear-gradient(90deg, #ff0057, #6a00ff);
+      padding: 0.8rem;
+      text-align: center;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.5rem;
+    }
+
+    .form-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 1rem;
+      background: #121212;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      font-size: 1rem; /* Increased size */
+      font-weight: bold; /* Made bold */
+      margin-bottom: 4px;
+      color: #fff;
+    }
+
+    input {
+      padding: 7px 10px;
+      font-size: 0.95rem;
+      border-radius: 5px;
+      border: none;
+      background: #1e1e1e;
+      color: white;
+      width: 200px;
+    }
+
+    input:focus {
+      outline: 2px solid #6a00ff;
+    }
+
+    /* Make calendar and clock icons white */
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="time"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+    }
+
+    button {
+      margin-top: 18px;
+      height: 38px;
+      padding: 0 16px;
+      background: #6a00ff;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-weight: bold;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #ff0057;
+    }
+
+    #map {
+      height: calc(100vh - 170px);
+      width: 100%;
+    }
+
+    footer {
+      text-align: center;
+      padding: 0.4rem;
+      background: #1c1c1c;
+      font-size: 0.75rem;
+      color: #aaa;
+    }
+
+    #trafficResult {
+      display: none;
+      text-align: center;
+      padding: 0.5rem;
+      background: #181818;
+      font-size: 0.9rem;
+      color: #00ffcc;
+    }
+
+    /* Responsive for mobile */
+    @media screen and (max-width: 600px) {
+      .form-container {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 1rem 1rem 0.5rem;
+      }
+
+      input, button {
+        width: 100%;
+      }
+
+      .input-group {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  Traffic Forecasting - Indore
+</header>
+
+<div class="form-container">
+  <div class="input-group">
+    <label for="source">Source</label>
+    <input type="text" id="source" placeholder="e.g., Vijay Nagar" />
+  </div>
+  <div class="input-group">
+    <label for="destination">Destination</label>
+    <input type="text" id="destination" placeholder="e.g., Rajwada" />
+  </div>
+  <div class="input-group">
+    <label for="date">Date</label>
+    <input type="date" id="date" />
+  </div>
+  <div class="input-group">
+    <label for="time">Time</label>
+    <input type="time" id="time" />
+  </div>
+  <div class="input-group" style="margin-top: 18px;">
+    <label>&nbsp;</label>
+    <button id="predictBtn">Show Best Route</button>
+  </div>
+</div>
+
+<div id="trafficResult">
+  <!-- Placeholder: Traffic Prediction result will appear here -->
+</div>
+
+<div id="map"></div>
+
+<footer>
+  🌍 Made with ❤️ for Indore | Demo UI
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  var map = L.map('map').setView([22.7196, 75.8577], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  document.getElementById("predictBtn").addEventListener("click", function () {
+    const trafficResult = document.getElementById("trafficResult");
+    trafficResult.style.display = "block";
+    trafficResult.innerText = "⏳ Predicting traffic... (backend integration coming soon)";
+  });
+
+  // Redirect to index1.html for the main app UI
+  window.location.href = 'index1.html';
+</script>
+</body>
+</html>
