@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 from django.core.management.base import BaseCommand
@@ -12,14 +13,26 @@ class Command(BaseCommand):
         # Clear existing data
         TrafficData.objects.all().delete()
 
-        # Load Indore road network
+        # Clear OSMnx cache
+        cache_folder = os.path.join(os.path.dirname(__file__), '..', '..', 'cache')
+        os.makedirs(cache_folder, exist_ok=True)
+        for file in os.listdir(cache_folder):
+            os.remove(os.path.join(cache_folder, file))
+            self.stdout.write(self.style.WARNING(f"Deleted cache file: {file}"))
+
+        # Load Indore road data network
         ox.settings.use_cache = True
+        ox.settings.cache_folder = cache_folder
         try:
-            G = ox.graph_from_place('Indore, India', network_type='all')  # Try 'all' for bike/walk
+            G = ox.graph_from_place('Indore, India', network_type='drive')
             edges = ox.graph_to_gdfs(G, nodes=False, edges=True)
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Failed to load Indore map data: {str(e)}"))
             return
+
+        # Log sample osmids
+        sample_osmids = [str(osmid) if not isinstance(osmid, list) else str(osmid[0]) for osmid in edges['osmid'].values[:5]]
+        self.stdout.write(self.style.NOTICE(f"Sample OSM osmids: {sample_osmids}"))
 
         # Generate synthetic data
         num_rows = 10000
@@ -33,12 +46,8 @@ class Command(BaseCommand):
 
         # Base speeds for Indore road types
         base_speeds = {
-            'motorway': 70,
-            'primary': 50,
-            'secondary': 40,
-            'tertiary': 30,
-            'residential': 25,
-            'unclassified': 20
+            'motorway': 70, 'primary': 50, 'secondary': 40, 'tertiary': 30,
+            'residential': 25, 'unclassified': 20
         }
 
         # Generate speeds
@@ -53,12 +62,15 @@ class Command(BaseCommand):
             speeds.append(max(5, min(speed, 80)))
 
         # Create DataFrame
+        road_id_list = [
+            str(road_ids[i % len(road_ids)]) if not isinstance(road_ids[i % len(road_ids)], list)
+            else str(road_ids[i % len(road_ids)][0])
+            for i in range(num_rows)
+        ]
+        self.stdout.write(self.style.NOTICE(f"Sample generated road_ids: {road_id_list[:5]}"))
+
         data = {
-            'road_id': [
-                str(road_ids[i % len(road_ids)][0]) if isinstance(road_ids[i % len(road_ids)], list)
-                else str(road_ids[i % len(road_ids)])
-                for i in range(num_rows)
-            ],
+            'road_id': road_id_list,
             'latitude_start': [edges.iloc[i % len(edges)]['geometry'].coords[0][1] for i in range(num_rows)],
             'longitude_start': [edges.iloc[i % len(edges)]['geometry'].coords[0][0] for i in range(num_rows)],
             'latitude_end': [edges.iloc[i % len(edges)]['geometry'].coords[-1][1] for i in range(num_rows)],
