@@ -7,28 +7,55 @@ import flatpickr from 'flatpickr';
 const MainContent = () => {
   const [source, setSource] = useState('');
   const [destination, setDestination] = useState('');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
+
+  const now = new Date();
+
+
+  const formatDate = (date) => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-based
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  const formatTime = (date) => {
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12; // convert to 12-hour format
+    return `${hours}:${minutes} ${ampm}`;
+  };
+  const [date, setDate] = useState(formatDate(now));
+  const [time, setTime] = useState(formatTime(now));
+  
   const [selectedTransport, setSelectedTransport] = useState('bike');
   const [trafficResult, setTrafficResult] = useState('');
   const [showTrafficResult, setShowTrafficResult] = useState(false);
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
   const [routeData, setRouteData] = useState(null);
   const [showAllSegments, setShowAllSegments] = useState(false);
+  const [routes, setRoutes] = useState([]);
+  const [selectedRouteIdx, setSelectedRouteIdx] = useState(0);
 
   useEffect(() => {
     setShowPermissionDialog(true);
     
     // Initialize flatpickr for date and time inputs
     flatpickr("#date", {
-      dateFormat: "d-m-Y"
+      dateFormat: "d-m-Y",
+      onChange: (selectedDates, dateStr) => {
+        setDate(dateStr.toString());
+      }
     });
 
     flatpickr("#time", {
       enableTime: true,
       noCalendar: true,
       dateFormat: "h:i K",
-      time_24hr: false
+      time_24hr: false,
+      onChange: (selectedDates, timeStr) => {
+        setTime(timeStr); // Update state when time changes
+      }
     });
   }, []);
 
@@ -78,70 +105,40 @@ const MainContent = () => {
       alert("Please enter both source and destination");
       return;
     }
-
     setShowTrafficResult(true);
     setTrafficResult("⏳ Predicting traffic...");
     setShowAllSegments(false);
-
     try {
       const geocodedSource = await geocodePlace(source);
       const geocodedDestination = await geocodePlace(destination);
       const dateTimeStr = toISODateTime(date, time);
-      
       const body = {
         source: geocodedSource,
         destination: geocodedDestination,
         date_time: dateTimeStr,
         travel_mode: selectedTransport
       };
-      
-      console.log("Sending to backend:", body);
-      
-      const response = await fetch("/api/routes/", {
+      const response = await fetch(`/api/routes/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
       });
-      
       const data = await response.json();
-      console.log("Backend response:", data);
-      
       if (!response.ok) {
         setTrafficResult(`Error: ${data.error || 'Error fetching route'}`);
         return;
       }
-
-      const best = data.find(r => r.recommended) || data[0];
-      setRouteData(best);
-      
-      setTrafficResult(''); // We'll render the result below
-      
+      setRoutes(data);
+      const bestIdx = data.findIndex(r => r.recommended) !== -1 ? data.findIndex(r => r.recommended) : 0;
+      setSelectedRouteIdx(bestIdx);
+      setRouteData(data[bestIdx]);
+      setTrafficResult('');
     } catch (err) {
       setTrafficResult(`Error: ${err.message}`);
     }
   };
 
-  // Render segments with show more/less
-  const renderSegments = (segments) => {
-    if (!segments || segments.length === 0) return <div>No segments found.</div>;
-    const visibleSegments = showAllSegments ? segments : segments.slice(0, 10);
-    return (
-      <div style={{ maxHeight: '200px', overflowY: 'auto', margin: '0.5rem 0' }}>
-        <ul style={{ paddingLeft: 20 }}>
-          {visibleSegments.map((seg, idx) => (
-            <li key={idx} style={{ color: seg.congestion_level === 'red' ? 'red' : seg.congestion_level === 'yellow' ? '#ffb300' : 'limegreen' }}>
-              {seg.congestion_level.toUpperCase()} | {seg.length_m}m | {seg.speed_kmh} km/h
-            </li>
-          ))}
-        </ul>
-        {segments.length > 10 && (
-          <button style={{ marginTop: 8 }} onClick={() => setShowAllSegments(!showAllSegments)}>
-            {showAllSegments ? 'Show less' : `Show all (${segments.length})`}
-          </button>
-        )}
-      </div>
-    );
-  };
+  console.log({date, time});
 
   return (
     <div id="mainContent">
@@ -158,6 +155,7 @@ const MainContent = () => {
             autoComplete="off"
             value={source}
             onChange={(e) => setSource(e.target.value)}
+            style={{ background: '#f0f0f0', color: '#000' }}
           />
         </div>
         <div className="input-group">
@@ -170,6 +168,7 @@ const MainContent = () => {
             autoComplete="off"
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
+            style={{ background: '#f0f0f0', color: '#000' }}
           />
         </div>
         <div className="input-group">
@@ -179,7 +178,8 @@ const MainContent = () => {
             id="date"
             className="flatpickr"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            // onChange={(e) => setDate(e.target.value)}
+            style={{ background: '#f0f0f0', color: '#000' }}
           />
         </div>
         <div className="input-group">
@@ -190,6 +190,7 @@ const MainContent = () => {
             className="flatpickr"
             value={time}
             onChange={(e) => setTime(e.target.value)}
+            style={{ background: '#f0f0f0', color: '#000' }}
           />
         </div>
       </div>
@@ -298,19 +299,19 @@ const MainContent = () => {
             className={selectedTransport === 'bike' ? 'active' : ''}
             onClick={() => handleTransportChange('bike')}
           >
-            🚲 Bike
+            Bike
           </button>
           <button 
             className={selectedTransport === 'car' ? 'active' : ''}
             onClick={() => handleTransportChange('car')}
           >
-            🚗 Car
+            Car
           </button>
           <button 
             className={selectedTransport === 'walk' ? 'active' : ''}
             onClick={() => handleTransportChange('walk')}
           >
-            🚶 Walk
+            Walk
           </button>
         </div>
         <button id="routeBtn" onClick={handleRouteRequest}>
@@ -318,16 +319,71 @@ const MainContent = () => {
         </button>
       </div>
 
+      {routes.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          bottom: '2rem',
+          left: '2rem',
+          background: '#fff',
+          border: '1px solid #ccc',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px #aaa',
+          padding: '1rem',
+          zIndex: 1000,
+          minWidth: '200px',
+          maxHeight: '60vh',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.5rem',
+          alignItems: 'stretch',
+          fontFamily: 'Segoe UI, Arial, sans-serif',
+        }}>
+          <div style={{
+            color: '#000',
+            fontWeight: 'bold',
+            fontSize: '1.1rem',
+            marginBottom: '0.5rem',
+            fontFamily: 'inherit'
+          }}>
+            Available Routes
+          </div>
+          {routes.map((r, idx) => (
+            <button
+              key={idx}
+              style={{
+                fontWeight: idx === selectedRouteIdx ? 'bold' : 'normal',
+                color: '#111',
+                border: idx === selectedRouteIdx ? '2px solid #888' : '1px solid #ccc',
+                background: idx === selectedRouteIdx ? '#e0e0e0' : '#fff',
+                cursor: 'pointer',
+                borderRadius: 6,
+                padding: '0.5rem 1rem',
+                margin: 0,
+                minWidth: '160px',
+                textAlign: 'center',
+                boxShadow: idx === selectedRouteIdx ? '0 2px 8px #ccc' : 'none',
+                fontFamily: 'inherit',
+                fontSize: '1rem',
+                transition: 'background 0.2s, border 0.2s',
+              }}
+              onClick={() => {
+                setSelectedRouteIdx(idx);
+                setRouteData(routes[idx]);
+              }}
+            >
+              {r.route_name} <br/>({r.total_distance_km} km, {r.total_time_min} min){r.recommended ? ' [Fastest]' : ''}
+            </button>
+          ))}
+        </div>
+      )}
+
       {showTrafficResult && (
         <div id="trafficResult" style={{ display: 'block' }}>
           {trafficResult && <div dangerouslySetInnerHTML={{ __html: trafficResult }} />}
           {routeData && (
             <div>
-              <div><b>{routeData.route_name}</b></div>
-              <div>Total Distance: {routeData.total_distance_km} km</div>
-              <div>Estimated Time: {routeData.total_time_min} min</div>
-              <div>Segments:</div>
-              {renderSegments(routeData.segments)}
+              Predicted results.
             </div>
           )}
         </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 
-const TrafficMap = ({ routeData }) => {
+const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick }) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const routePolylineGroupRef = useRef([]);
@@ -37,7 +37,49 @@ const TrafficMap = ({ routeData }) => {
   }, []);
 
   useEffect(() => {
-    if (routeData && mapInstanceRef.current) {
+    if (routes && routes.length > 0 && mapInstanceRef.current) {
+      // Remove previous routes and markers
+      routePolylineGroupRef.current.forEach(l => mapInstanceRef.current.removeLayer(l));
+      routePolylineGroupRef.current = [];
+      if (sourceMarkerRef.current) mapInstanceRef.current.removeLayer(sourceMarkerRef.current);
+      if (destMarkerRef.current) mapInstanceRef.current.removeLayer(destMarkerRef.current);
+      // Draw all routes
+      routes.forEach((r, idx) => {
+        const color = r.recommended ? 'blue' : (idx === selectedRouteIdx ? 'orange' : '#888');
+        const latlngs = r.segments.flatMap(seg => [
+          [seg.latitude_start, seg.longitude_start],
+          [seg.latitude_end, seg.longitude_end]
+        ]);
+        const polyline = L.polyline(latlngs, {
+          color,
+          weight: r.recommended ? 8 : 5,
+          opacity: idx === selectedRouteIdx ? 1 : 0.5
+        }).addTo(mapInstanceRef.current);
+        polyline.on('click', () => {
+          if (onRouteClick) onRouteClick(idx);
+          L.popup()
+            .setLatLng(latlngs[Math.floor(latlngs.length/2)])
+            .setContent(`<b>${r.route_name}</b><br/>Distance: ${r.total_distance_km} km<br/>Time: ${r.total_time_min} min`)
+            .openOn(mapInstanceRef.current);
+        });
+        routePolylineGroupRef.current.push(polyline);
+      });
+      // Fit map to selected route
+      const allLatLngs = routes[selectedRouteIdx].segments.flatMap(seg => [
+        [seg.latitude_start, seg.longitude_start],
+        [seg.latitude_end, seg.longitude_end]
+      ]);
+      mapInstanceRef.current.fitBounds(allLatLngs);
+      // Add source/dest markers for selected route
+      const src = routes[selectedRouteIdx].segments[0];
+      const dst = routes[selectedRouteIdx].segments[routes[selectedRouteIdx].segments.length-1];
+      sourceMarkerRef.current = L.marker([src.latitude_start, src.longitude_start], {
+        icon: L.divIcon({className: '', html: '📍', iconSize: [36,36], iconAnchor: [18,36]})
+      }).addTo(mapInstanceRef.current);
+      destMarkerRef.current = L.marker([dst.latitude_end, dst.longitude_end], {
+        icon: L.divIcon({className: '', html: '📍', iconSize: [36,36], iconAnchor: [18,36]})
+      }).addTo(mapInstanceRef.current);
+    } else if (routeData && mapInstanceRef.current) {
       console.log("Drawing route on map with", routeData.segments.length, "segments");
       
       // Remove previous route and markers
@@ -83,9 +125,9 @@ const TrafficMap = ({ routeData }) => {
       
       console.log("Route drawing completed");
     }
-  }, [routeData]);
+  }, [routes, selectedRouteIdx, routeData]);
 
-  return <div id="map" ref={mapRef} />;
+  return <div id="map" ref={mapRef} style={{ height: '400px', width: '100%' }} />;
 };
 
 export default TrafficMap; 
