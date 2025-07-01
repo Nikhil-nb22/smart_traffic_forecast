@@ -1,0 +1,23 @@
+body {
+  margin: 0;
+  font-family: sans-serif;
+}
+
+.container {
+  padding: 20px;
+}
+
+form {
+  margin-bottom: 20px;
+}
+
+input, select, button {
+  padding: 10px;
+  margin-right: 10px;
+}
+
+#map {
+  height: 600px;
+  width: 100%;
+  border: 1px solid #ccc;
+}

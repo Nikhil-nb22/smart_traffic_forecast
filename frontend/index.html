@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Traffic Route Finder</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Route Planner - Indore</h1>
+    <form id="routeForm">
+      <input type="text" id="source" placeholder="Source (lat,lng)" required>
+      <input type="text" id="destination" placeholder="Destination (lat,lng)" required>
+      <input type="datetime-local" id="datetime" required>
+      <select id="travel_mode">
+        <option value="drive">Drive</option>
+        <option value="bike">Bike</option>
+        <option value="walk">Walk</option>
+      </select>
+      <button type="submit">Find Route</button>
+    </form>
+    <div id="map"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
