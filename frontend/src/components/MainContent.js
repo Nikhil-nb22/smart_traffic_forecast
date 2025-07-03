@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import TrafficMap from './TrafficMap';
 import PermissionDialog from './PermissionDialog';
 import { indoreLocations } from '../utils/locations';
@@ -8,6 +8,7 @@ const MainContent = () => {
   const [source, setSource] = useState('');
   const [destination, setDestination] = useState('');
   const [activeField, setActiveField] = useState('source'); // Track which field is active
+  const activeFieldRef = useRef(activeField);
 
   const now = new Date();
 
@@ -60,6 +61,10 @@ const MainContent = () => {
       }
     });
   }, []);
+
+  useEffect(() => {
+    activeFieldRef.current = activeField;
+  }, [activeField]);
 
   const handlePermission = (allowed, placeName) => {
     setShowPermissionDialog(false);
@@ -159,9 +164,9 @@ const MainContent = () => {
   };
 
   const handleMapClick = (locationName) => {
-    if (activeField === 'source') {
+    if (activeFieldRef.current === 'source') {
       setSource(locationName);
-    } else if (activeField === 'destination') {
+    } else if (activeFieldRef.current === 'destination') {
       setDestination(locationName);
     }
     // Add visual feedback
@@ -245,6 +250,7 @@ const MainContent = () => {
             onChange={(e) => setSource(e.target.value)}
             style={{ background: '#f0f0f0', color: '#000' }}
             onFocus={() => setActiveField('source')}
+            onClick={() => setActiveField('source')}
           />
         </div>
         <div className="input-group">
@@ -259,6 +265,7 @@ const MainContent = () => {
             onChange={(e) => setDestination(e.target.value)}
             style={{ background: '#f0f0f0', color: '#000' }}
             onFocus={() => setActiveField('destination')}
+            onClick={() => setActiveField('destination')}
           />
         </div>
         <div className="input-group">
@@ -463,9 +470,6 @@ const MainContent = () => {
               }}
             >
               {r.route_name} <br/>({r.total_distance_km} km, {r.total_time_min} min){r.recommended ? ' [Fastest]' : ''}
-              <span style={{ display: 'block', color: '#1976d2', fontSize: '1rem', fontWeight: 500 }}>
-                Traffic: {getTrafficPercentage(r)}
-              </span>
             </button>
           ))}
         </div>
