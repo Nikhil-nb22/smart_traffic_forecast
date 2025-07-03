@@ -65,12 +65,11 @@ const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick, onMapCl
         const congestionColors = {
           red: '#d50000',
           yellow: '#ffd600',
-          blue: '#2979ff',
-          green: '#2979ff',
+          green: '#00c853',
         };
         for (let i = 0; i < selected.segments.length; i++) {
           const seg = selected.segments[i];
-          let color = congestionColors[seg.congestion_level] || '#2979ff';
+          let color = congestionColors[seg.congestion_level] || '#00c853';
           const latlngs = [
             [seg.latitude_start, seg.longitude_start],
             [seg.latitude_end, seg.longitude_end]
@@ -131,15 +130,14 @@ const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick, onMapCl
       const congestionColors = {
         red: '#d50000',
         yellow: '#ffd600',
-        blue: '#2979ff',
-        green: '#2979ff', // treat green as blue for normal
+        green: '#00c853',
       };
 
       // Draw each segment as a separate polyline
       for (let i = 0; i < routeData.segments.length; i++) {
         const seg = routeData.segments[i];
         console.log('Segment congestion_level:', seg.congestion_level);
-        let color = congestionColors[seg.congestion_level] || '#2979ff';
+        let color = congestionColors[seg.congestion_level] || '#00c853';
         const latlngs = [
           [seg.latitude_start, seg.longitude_start],
           [seg.latitude_end, seg.longitude_end]
