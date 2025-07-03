@@ -1,5 +1,6 @@
 from django.db import models
-
+from django.utils import timezone
+from datetime import timedelta
 # Create your models here.
 
 
@@ -25,3 +26,22 @@ class RawGPSData(models.Model):
     speed_kmh = models.FloatField()
     timestamp = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
+    
+
+#------------------
+
+
+
+class UserProfile(models.Model):
+    email = models.EmailField(unique=True)
+    name = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class OTP(models.Model):
+    email = models.EmailField()
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def is_expired(self):
+        return timezone.now() > self.created_at + timedelta(minutes=5)
+

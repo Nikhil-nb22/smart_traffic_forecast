@@ -10,6 +10,17 @@ import networkx as nx
 import os
 import time
 import osmnx.distance as distance
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from django.core.mail import send_mail
+from .models import UserProfile, OTP
+
+from google.oauth2 import id_token
+from google.auth.transport import requests as grequests
+from rest_framework_simplejwt.tokens import RefreshToken
+import random
+
+
 # Global graph cache
 G = None
 def load_graph(network_type='drive'):
@@ -187,3 +198,72 @@ class RouteView(APIView):
         print(f"Response built: {time.time() - start_time:.2f}s")
 
         return Response(route_results)
+    
+    
+    
+
+#-------------------------------------------------
+
+
+def get_tokens_for_user(user):
+    refresh = RefreshToken.for_user(user)
+    return {
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+    }
+
+class SendOTPView(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"error": "Email required"}, status=400)
+
+        # Delete old OTPs for this email
+        OTP.objects.filter(email=email).delete()
+
+        otp = str(random.randint(100000, 999999))
+        OTP.objects.create(email=email, code=otp)
+
+        send_mail("Your OTP Code", f"OTP: {otp}", settings.DEFAULT_FROM_EMAIL, [email])
+        return Response({"message": "OTP sent"})
+
+class VerifyOTPView(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        otp = request.data.get("otp")
+
+        try:
+            latest_otp = OTP.objects.filter(email=email).latest('created_at')
+        except OTP.DoesNotExist:
+            return Response({"error": "OTP not found"}, status=400)
+
+        if latest_otp.is_expired():
+            latest_otp.delete()
+            return Response({"error": "OTP expired"}, status=400)
+
+        if latest_otp.code != otp:
+            return Response({"error": "Invalid OTP"}, status=400)
+
+        # Delete OTP after successful verification
+        latest_otp.delete()
+
+        user, _ = UserProfile.objects.get_or_create(email=email)
+        tokens = get_tokens_for_user(user)
+        return Response({"message": "OTP verified", "email": user.email, "token": tokens['access']})
+
+class GoogleLoginView(APIView):
+    def post(self, request):
+        token = request.data.get("token")
+        if not token:
+            return Response({"error": "Token required"}, status=400)
+        try:
+            idinfo = id_token.verify_oauth2_token(token, grequests.Request())
+            email = idinfo['email']
+            name = idinfo.get('name', '')
+            user, _ = UserProfile.objects.get_or_create(email=email)
+            user.name = name
+            user.save()
+            tokens = get_tokens_for_user(user)
+            return Response({"message": "Google login successful", "email": user.email, "token": tokens['access']})
+        except:
+            return Response({"error": "Invalid token"}, status=400)
