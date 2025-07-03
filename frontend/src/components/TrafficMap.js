@@ -59,61 +59,64 @@ const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick, onMapCl
       routePolylineGroupRef.current = [];
       if (sourceMarkerRef.current) mapInstanceRef.current.removeLayer(sourceMarkerRef.current);
       if (destMarkerRef.current) mapInstanceRef.current.removeLayer(destMarkerRef.current);
-      // Draw all routes
-      routes.forEach((r, idx) => {
-        const color = r.recommended ? 'blue' : (idx === selectedRouteIdx ? 'orange' : '#888');
-        const latlngs = r.segments.flatMap(seg => [
+      // Only draw the selected route with traffic colors
+      const selected = routes[selectedRouteIdx];
+      if (selected && selected.segments) {
+        const congestionColors = {
+          red: '#d50000',
+          yellow: '#ffd600',
+          blue: '#2979ff',
+          green: '#2979ff',
+        };
+        for (let i = 0; i < selected.segments.length; i++) {
+          const seg = selected.segments[i];
+          let color = congestionColors[seg.congestion_level] || '#2979ff';
+          const latlngs = [
+            [seg.latitude_start, seg.longitude_start],
+            [seg.latitude_end, seg.longitude_end]
+          ];
+          const polyline = L.polyline(latlngs, {
+            color,
+            weight: 8,
+            opacity: 0.9,
+            lineCap: 'round',
+          }).addTo(mapInstanceRef.current);
+          routePolylineGroupRef.current.push(polyline);
+        }
+        // Add source/dest markers for selected route
+        const src = selected.segments[0];
+        const dst = selected.segments[selected.segments.length-1];
+        const getSvgIcon = (color) => {
+          return L.divIcon({
+            className: 'custom-marker',
+            html: `<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g filter="url(#shadow)">
+                <path d="M24 4C14.0589 4 6 12.0589 6 22C6 34.5 24 44 24 44C24 44 42 34.5 42 22C42 12.0589 33.9411 4 24 4Z" fill="${color}"/>
+                <circle cx="24" cy="22" r="7" fill="white"/>
+              </g>
+              <defs>
+                <filter id="shadow" x="0" y="0" width="48" height="48" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                  <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="black" flood-opacity="0.3"/>
+                </filter>
+              </defs>
+            </svg>`,
+            iconSize: [48, 48],
+            iconAnchor: [24, 48]
+          });
+        };
+        sourceMarkerRef.current = L.marker([src.latitude_start, src.longitude_start], {
+          icon: getSvgIcon('red')
+        }).addTo(mapInstanceRef.current);
+        destMarkerRef.current = L.marker([dst.latitude_end, dst.longitude_end], {
+          icon: getSvgIcon('green')
+        }).addTo(mapInstanceRef.current);
+        // Fit map to selected route
+        const allLatLngs = selected.segments.flatMap(seg => [
           [seg.latitude_start, seg.longitude_start],
           [seg.latitude_end, seg.longitude_end]
         ]);
-        const polyline = L.polyline(latlngs, {
-          color,
-          weight: r.recommended ? 8 : 5,
-          opacity: idx === selectedRouteIdx ? 1 : 0.5
-        }).addTo(mapInstanceRef.current);
-        polyline.on('click', () => {
-          if (onRouteClick) onRouteClick(idx);
-          L.popup()
-            .setLatLng(latlngs[Math.floor(latlngs.length/2)])
-            .setContent(`<b>${r.route_name}</b><br/>Distance: ${r.total_distance_km} km<br/>Time: ${r.total_time_min} min`)
-            .openOn(mapInstanceRef.current);
-        });
-        routePolylineGroupRef.current.push(polyline);
-      });
-      // Fit map to selected route
-      const allLatLngs = routes[selectedRouteIdx].segments.flatMap(seg => [
-        [seg.latitude_start, seg.longitude_start],
-        [seg.latitude_end, seg.longitude_end]
-      ]);
-      mapInstanceRef.current.fitBounds(allLatLngs);
-      // SVG marker icon generator
-      const getSvgIcon = (color) => {
-        return L.divIcon({
-          className: 'custom-marker',
-          html: `<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <g filter="url(#shadow)">
-              <path d="M24 4C14.0589 4 6 12.0589 6 22C6 34.5 24 44 24 44C24 44 42 34.5 42 22C42 12.0589 33.9411 4 24 4Z" fill="${color}"/>
-              <circle cx="24" cy="22" r="7" fill="white"/>
-            </g>
-            <defs>
-              <filter id="shadow" x="0" y="0" width="48" height="48" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-                <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="black" flood-opacity="0.3"/>
-              </filter>
-            </defs>
-          </svg>`,
-          iconSize: [48, 48],
-          iconAnchor: [24, 48]
-        });
-      };
-      // Add source/dest markers for selected route
-      const src = routes[selectedRouteIdx].segments[0];
-      const dst = routes[selectedRouteIdx].segments[routes[selectedRouteIdx].segments.length-1];
-      sourceMarkerRef.current = L.marker([src.latitude_start, src.longitude_start], {
-        icon: getSvgIcon('red')
-      }).addTo(mapInstanceRef.current);
-      destMarkerRef.current = L.marker([dst.latitude_end, dst.longitude_end], {
-        icon: getSvgIcon('green')
-      }).addTo(mapInstanceRef.current);
+        mapInstanceRef.current.fitBounds(allLatLngs);
+      }
     } else if (routeData && mapInstanceRef.current) {
       console.log("Drawing route on map with", routeData.segments.length, "segments");
       
@@ -124,16 +127,29 @@ const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick, onMapCl
       if (sourceMarkerRef.current) mapInstanceRef.current.removeLayer(sourceMarkerRef.current);
       if (destMarkerRef.current) mapInstanceRef.current.removeLayer(destMarkerRef.current);
 
-      // Draw each segment with color
+      // Google Maps-like traffic color mapping
+      const congestionColors = {
+        red: '#d50000',
+        yellow: '#ffd600',
+        blue: '#2979ff',
+        green: '#2979ff', // treat green as blue for normal
+      };
+
+      // Draw each segment as a separate polyline
       for (let i = 0; i < routeData.segments.length; i++) {
         const seg = routeData.segments[i];
-        const color = seg.congestion_level === 'red' ? 'red' : seg.congestion_level === 'yellow' ? 'yellow' : 'green';
+        console.log('Segment congestion_level:', seg.congestion_level);
+        let color = congestionColors[seg.congestion_level] || '#2979ff';
         const latlngs = [
           [seg.latitude_start, seg.longitude_start],
           [seg.latitude_end, seg.longitude_end]
         ];
-        console.log(`Drawing segment ${i}: ${color} from [${seg.latitude_start}, ${seg.longitude_start}] to [${seg.latitude_end}, ${seg.longitude_end}]`);
-        const polyline = L.polyline(latlngs, {color, weight: 7, opacity: 0.8}).addTo(mapInstanceRef.current);
+        const polyline = L.polyline(latlngs, {
+          color,
+          weight: 8,
+          opacity: 0.9,
+          lineCap: 'round',
+        }).addTo(mapInstanceRef.current);
         routePolylineGroupRef.current.push(polyline);
       }
       

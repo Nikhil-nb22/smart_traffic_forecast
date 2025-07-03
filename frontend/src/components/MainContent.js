@@ -37,6 +37,7 @@ const MainContent = () => {
   const [showAllSegments, setShowAllSegments] = useState(false);
   const [routes, setRoutes] = useState([]);
   const [selectedRouteIdx, setSelectedRouteIdx] = useState(0);
+  const [showLocationPopup, setShowLocationPopup] = useState(false);
 
   useEffect(() => {
     setShowPermissionDialog(true);
@@ -60,9 +61,10 @@ const MainContent = () => {
     });
   }, []);
 
-  const handlePermission = (allowed) => {
+  const handlePermission = (allowed, placeName) => {
     setShowPermissionDialog(false);
     if (allowed) {
+      if (placeName) setSource(placeName);
       console.log('Location permission granted');
     } else {
       alert("Location access is required for full functionality. You can enable it later in your browser settings.");
@@ -85,19 +87,36 @@ const MainContent = () => {
   };
 
   const geocodePlace = async (place) => {
+    // If already coordinates, return as is
     if (/^-?\d+\.\d+,-?\d+\.\d+$/.test(place.trim())) return place.trim();
-    
+
+    // If in indoreLocations, return coordinates
     if (indoreLocations[place.trim()]) {
       return indoreLocations[place.trim()];
     }
-    
+
+    // Try to geocode online
     const url = `https://nominatim.openstreetmap.org/search?city=Indore&state=Madhya%20Pradesh&country=India&q=${encodeURIComponent(place)}&format=json&limit=1`;
     const resp = await fetch(url, {headers: { 'Accept-Language': 'en' }});
     const data = await resp.json();
     if (data && data.length > 0) {
       return `${data[0].lat},${data[0].lon}`;
     } else {
-      throw new Error('Location not found: ' + place);
+      // If not found, try to use browser geolocation as fallback
+      return new Promise((resolve, reject) => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              resolve(`${position.coords.latitude},${position.coords.longitude}`);
+            },
+            () => {
+              reject(new Error('Location not found and unable to get current position.'));
+            }
+          );
+        } else {
+          reject(new Error('Location not found: ' + place));
+        }
+      });
     }
   };
 
@@ -166,7 +185,48 @@ const MainContent = () => {
     }
   };
 
+  // Helper to reverse geocode lat/lng to a place name
+  const getPlaceName = async (lat, lng) => {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`;
+    try {
+      const resp = await fetch(url);
+      const data = await resp.json();
+      if (data && data.display_name) {
+        return data.display_name;
+      } else {
+        return `${lat},${lng}`;
+      }
+    } catch {
+      return `${lat},${lng}`;
+    }
+  };
+
+  const handleUseCurrentLocation = async () => {
+    setShowLocationPopup(false);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        const { latitude, longitude } = position.coords;
+        const placeName = await getPlaceName(latitude, longitude);
+        // Use the name only if it's in indoreLocations, otherwise use coordinates
+        const nameOrCoords = indoreLocations[placeName] ? placeName : `${latitude},${longitude}`;
+        setSource(nameOrCoords);
+      }, () => {
+        alert('Unable to retrieve your location.');
+      }, { enableHighAccuracy: true });
+    } else {
+      alert('Geolocation is not supported by your browser.');
+    }
+  };
+
   console.log({date, time});
+
+  function getTrafficPercentage(route) {
+    if (!route || !route.segments || route.segments.length === 0) return "0%";
+    const congested = route.segments.filter(
+      seg => seg.congestion_level === "red" || seg.congestion_level === "yellow"
+    ).length;
+    return `${Math.round((congested / route.segments.length) * 100)}%`;
+  }
 
   return (
     <div id="mainContent">
@@ -403,6 +463,9 @@ const MainContent = () => {
               }}
             >
               {r.route_name} <br/>({r.total_distance_km} km, {r.total_time_min} min){r.recommended ? ' [Fastest]' : ''}
+              <span style={{ display: 'block', color: '#1976d2', fontSize: '1rem', fontWeight: 500 }}>
+                Traffic: {getTrafficPercentage(r)}
+              </span>
             </button>
           ))}
         </div>

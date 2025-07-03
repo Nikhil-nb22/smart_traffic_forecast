@@ -23,6 +23,7 @@ export const indoreLocations = {
   "MR 3": "22.6986,75.8647",
   "MR 2": "22.7205,75.8642",
   "MR 1": "22.7198,75.9042",
+  "Mahalaxmi Nagar Main Road": "22.7597,75.9111",
   
   // Malls and Shopping Centers
   "Treasure Island Mall": "22.7376,75.8892",
