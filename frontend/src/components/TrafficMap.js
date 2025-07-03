@@ -24,8 +24,12 @@ const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick, onMapCl
         const { lat, lng } = e.latlng;
         // Find the nearest location
         const nearestLocation = findNearestLocation(lat, lng);
-        if (onMapClick && nearestLocation) {
-          onMapClick(nearestLocation);
+        if (onMapClick) {
+          if (nearestLocation) {
+            onMapClick(nearestLocation);
+          } else {
+            onMapClick(`${lat.toFixed(6)},${lng.toFixed(6)}`);
+          }
         }
       });
 
@@ -82,14 +86,33 @@ const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick, onMapCl
         [seg.latitude_end, seg.longitude_end]
       ]);
       mapInstanceRef.current.fitBounds(allLatLngs);
+      // SVG marker icon generator
+      const getSvgIcon = (color) => {
+        return L.divIcon({
+          className: 'custom-marker',
+          html: `<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g filter="url(#shadow)">
+              <path d="M24 4C14.0589 4 6 12.0589 6 22C6 34.5 24 44 24 44C24 44 42 34.5 42 22C42 12.0589 33.9411 4 24 4Z" fill="${color}"/>
+              <circle cx="24" cy="22" r="7" fill="white"/>
+            </g>
+            <defs>
+              <filter id="shadow" x="0" y="0" width="48" height="48" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="black" flood-opacity="0.3"/>
+              </filter>
+            </defs>
+          </svg>`,
+          iconSize: [48, 48],
+          iconAnchor: [24, 48]
+        });
+      };
       // Add source/dest markers for selected route
       const src = routes[selectedRouteIdx].segments[0];
       const dst = routes[selectedRouteIdx].segments[routes[selectedRouteIdx].segments.length-1];
       sourceMarkerRef.current = L.marker([src.latitude_start, src.longitude_start], {
-        icon: L.divIcon({className: '', html: '📍', iconSize: [36,36], iconAnchor: [18,36]})
+        icon: getSvgIcon('red')
       }).addTo(mapInstanceRef.current);
       destMarkerRef.current = L.marker([dst.latitude_end, dst.longitude_end], {
-        icon: L.divIcon({className: '', html: '📍', iconSize: [36,36], iconAnchor: [18,36]})
+        icon: getSvgIcon('green')
       }).addTo(mapInstanceRef.current);
     } else if (routeData && mapInstanceRef.current) {
       console.log("Drawing route on map with", routeData.segments.length, "segments");
@@ -121,6 +144,25 @@ const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick, onMapCl
       ]);
       mapInstanceRef.current.fitBounds(allLatLngs);
       
+      // SVG marker icon generator
+      const getSvgIcon = (color) => {
+        return L.divIcon({
+          className: 'custom-marker',
+          html: `<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g filter="url(#shadow)">
+              <path d="M24 4C14.0589 4 6 12.0589 6 22C6 34.5 24 44 24 44C24 44 42 34.5 42 22C42 12.0589 33.9411 4 24 4Z" fill="${color}"/>
+              <circle cx="24" cy="22" r="7" fill="white"/>
+            </g>
+            <defs>
+              <filter id="shadow" x="0" y="0" width="48" height="48" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="black" flood-opacity="0.3"/>
+              </filter>
+            </defs>
+          </svg>`,
+          iconSize: [48, 48],
+          iconAnchor: [24, 48]
+        });
+      };
       // Add source and destination markers with red location emoji
       const src = routeData.segments[0];
       const dst = routeData.segments[routeData.segments.length-1];
@@ -128,11 +170,11 @@ const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick, onMapCl
       console.log("Adding dest marker at:", dst.latitude_end, dst.longitude_end);
       
       sourceMarkerRef.current = L.marker([src.latitude_start, src.longitude_start], {
-        icon: L.divIcon({className: '', html: '📍', iconSize: [36,36], iconAnchor: [18,36]})
+        icon: getSvgIcon('red')
       }).addTo(mapInstanceRef.current);
       
       destMarkerRef.current = L.marker([dst.latitude_end, dst.longitude_end], {
-        icon: L.divIcon({className: '', html: '📍', iconSize: [36,36], iconAnchor: [18,36]})
+        icon: getSvgIcon('green')
       }).addTo(mapInstanceRef.current);
       
       console.log("Route drawing completed");

@@ -7,6 +7,7 @@ import flatpickr from 'flatpickr';
 const MainContent = () => {
   const [source, setSource] = useState('');
   const [destination, setDestination] = useState('');
+  const [activeField, setActiveField] = useState('source'); // Track which field is active
 
   const now = new Date();
 
@@ -139,15 +140,28 @@ const MainContent = () => {
   };
 
   const handleMapClick = (locationName) => {
-    setSource(locationName);
+    if (activeField === 'source') {
+      setSource(locationName);
+    } else if (activeField === 'destination') {
+      setDestination(locationName);
+    }
     // Add visual feedback
     const sourceInput = document.getElementById('source');
+    const destinationInput = document.getElementById('destination');
     if (sourceInput) {
       sourceInput.style.backgroundColor = '#e8f5e8';
       sourceInput.style.borderColor = '#4CAF50';
       setTimeout(() => {
         sourceInput.style.backgroundColor = '#f0f0f0';
         sourceInput.style.borderColor = '#ccc';
+      }, 2000);
+    }
+    if (destinationInput) {
+      destinationInput.style.backgroundColor = '#e8f5e8';
+      destinationInput.style.borderColor = '#4CAF50';
+      setTimeout(() => {
+        destinationInput.style.backgroundColor = '#f0f0f0';
+        destinationInput.style.borderColor = '#ccc';
       }, 2000);
     }
   };
@@ -170,6 +184,7 @@ const MainContent = () => {
             value={source}
             onChange={(e) => setSource(e.target.value)}
             style={{ background: '#f0f0f0', color: '#000' }}
+            onFocus={() => setActiveField('source')}
           />
         </div>
         <div className="input-group">
@@ -183,6 +198,7 @@ const MainContent = () => {
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
             style={{ background: '#f0f0f0', color: '#000' }}
+            onFocus={() => setActiveField('destination')}
           />
         </div>
         <div className="input-group">
