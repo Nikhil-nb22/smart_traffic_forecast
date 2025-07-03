@@ -113,4 +113,26 @@ export const indoreLocations = {
   "Ganesh Temple": "22.7196,75.8577",
   "Shiv Temple": "22.7196,75.8577",
   "Durga Temple": "22.7196,75.8577"
+};
+
+// Function to find the nearest location to given coordinates
+export const findNearestLocation = (lat, lng) => {
+  let nearestLocation = null;
+  let minDistance = Infinity;
+  
+  for (const [locationName, coordinates] of Object.entries(indoreLocations)) {
+    const [locLat, locLng] = coordinates.split(',').map(Number);
+    const distance = Math.sqrt(
+      Math.pow(lat - locLat, 2) + Math.pow(lng - locLng, 2)
+    );
+    
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearestLocation = locationName;
+    }
+  }
+  
+  // Only return if the distance is reasonable (within ~2km)
+  const maxReasonableDistance = 0.02; // approximately 2km in degrees
+  return minDistance <= maxReasonableDistance ? nearestLocation : null;
 }; 

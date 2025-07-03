@@ -1,13 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
+import { findNearestLocation } from '../utils/locations';
 
-const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick }) => {
+const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick, onMapClick }) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const routePolylineGroupRef = useRef([]);
   const sourceMarkerRef = useRef(null);
   const destMarkerRef = useRef(null);
   const userMarkerRef = useRef(null);
+  const clickMarkerRef = useRef(null);
 
   useEffect(() => {
     if (!mapInstanceRef.current) {
@@ -16,6 +18,16 @@ const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick }) => {
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(mapInstanceRef.current);
+
+      // Add click event listener to the map
+      mapInstanceRef.current.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        // Find the nearest location
+        const nearestLocation = findNearestLocation(lat, lng);
+        if (onMapClick && nearestLocation) {
+          onMapClick(nearestLocation);
+        }
+      });
 
       // Enable location if available
       if (navigator.geolocation) {
@@ -34,7 +46,7 @@ const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick }) => {
         );
       }
     }
-  }, []);
+  }, [onMapClick]);
 
   useEffect(() => {
     if (routes && routes.length > 0 && mapInstanceRef.current) {

@@ -138,6 +138,20 @@ const MainContent = () => {
     }
   };
 
+  const handleMapClick = (locationName) => {
+    setSource(locationName);
+    // Add visual feedback
+    const sourceInput = document.getElementById('source');
+    if (sourceInput) {
+      sourceInput.style.backgroundColor = '#e8f5e8';
+      sourceInput.style.borderColor = '#4CAF50';
+      setTimeout(() => {
+        sourceInput.style.backgroundColor = '#f0f0f0';
+        sourceInput.style.borderColor = '#ccc';
+      }, 2000);
+    }
+  };
+
   console.log({date, time});
 
   return (
@@ -389,7 +403,16 @@ const MainContent = () => {
         </div>
       )}
 
-      <TrafficMap routeData={routeData} />
+      <TrafficMap 
+        routeData={routeData} 
+        routes={routes}
+        selectedRouteIdx={selectedRouteIdx}
+        onRouteClick={(idx) => {
+          setSelectedRouteIdx(idx);
+          setRouteData(routes[idx]);
+        }}
+        onMapClick={handleMapClick} 
+      />
 
       <footer>🌍 Made with ❤️ for Indore | Demo UI</footer>
 
