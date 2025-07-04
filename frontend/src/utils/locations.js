@@ -125,7 +125,7 @@ export const findNearestLocation = (lat, lng) => {
   let nearestLocation = null;
   let minDistance = Infinity;
   
-  console.log(`Finding nearest location to coordinates: ${lat}, ${lng}`);
+  // console.log(`Finding nearest location to coordinates: ${lat}, ${lng}`);
   
   for (const [locationName, coordinates] of Object.entries(indoreLocations)) {
     const [locLat, locLng] = coordinates.split(',').map(Number);
@@ -133,7 +133,7 @@ export const findNearestLocation = (lat, lng) => {
       Math.pow(lat - locLat, 2) + Math.pow(lng - locLng, 2)
     );
     
-    console.log(`${locationName}: ${locLat}, ${locLng} - distance: ${distance.toFixed(6)}`);
+    // console.log(`${locationName}: ${locLat}, ${locLng} - distance: ${distance.toFixed(6)}`);
     
     if (distance < minDistance) {
       minDistance = distance;
@@ -144,6 +144,6 @@ export const findNearestLocation = (lat, lng) => {
   // Use a reasonable distance of ~700m for matching any known place
   const maxReasonableDistance = 0.007; // approximately 700m in degrees
   const result = minDistance <= maxReasonableDistance ? nearestLocation : null;
-  console.log(`Nearest location: ${result} (distance: ${minDistance.toFixed(6)})`);
+  // console.log(`Nearest location: ${result} (distance: ${minDistance.toFixed(6)})`);
   return result;
 }; 

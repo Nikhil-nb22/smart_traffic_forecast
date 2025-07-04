@@ -22,25 +22,28 @@ const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick, onMapCl
       // Add click event listener to the map
       mapInstanceRef.current.on('click', (e) => {
         const { lat, lng } = e.latlng;
-        console.log(`Map clicked at: ${lat}, ${lng}`);
-        
-        // First check if this location has a predefined name
-        const nearestLocation = findNearestLocation(lat, lng);
-        
-        if (nearestLocation) {
-          // If a predefined location is found nearby, use the location name
-          console.log(`Found predefined location: ${nearestLocation}`);
-          if (onMapClick) {
-            onMapClick(nearestLocation);
-          }
-        } else {
-          // If no predefined location found, use exact coordinates
-          const exactCoords = `${lat.toFixed(6)},${lng.toFixed(6)}`;
-          console.log(`No predefined location found, using exact coordinates: ${exactCoords}`);
-          if (onMapClick) {
+        const exactCoords = `${lat.toFixed(6)},${lng.toFixed(6)}`;
             onMapClick(exactCoords);
-          }
-        }
+
+        // console.log(`Map clicked at: ${lat}, ${lng}`);
+        
+        // // First check if this location has a predefined name
+        // const nearestLocation = findNearestLocation(lat, lng);
+        
+        // if (nearestLocation) {
+        //   // If a predefined location is found nearby, use the location name
+        //   console.log(`Found predefined location: ${nearestLocation}`);
+        //   if (onMapClick) {
+        //     onMapClick(nearestLocation);
+        //   }
+        // } else {
+        //   // If no predefined location found, use exact coordinates
+        //   const exactCoords = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+        //   console.log(`No predefined location found, using exact coordinates: ${exactCoords}`);
+        //   if (onMapClick) {
+        //     onMapClick(exactCoords);
+        //   }
+        // }
       });
 
       // Enable location if available

@@ -4,7 +4,7 @@ import MainContent from './components/MainContent';
 import './App.css';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(true);// change it later
 
   const handleLogin = () => {
     setIsLoggedIn(true);

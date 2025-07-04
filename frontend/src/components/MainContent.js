@@ -9,7 +9,8 @@ const MainContent = () => {
   const [destination, setDestination] = useState('');
   const [activeField, setActiveField] = useState('source'); // Track which field is active
   const activeFieldRef = useRef(activeField);
-
+  const [sourceLatLng, setSourceLatLng] = useState(null)
+  const [destinationLatLng, setDestinationLatLng] = useState(null)
   const now = new Date();
 
 
@@ -29,11 +30,11 @@ const MainContent = () => {
   };
   const [date, setDate] = useState(formatDate(now));
   const [time, setTime] = useState(formatTime(now));
-  
+
   const [selectedTransport, setSelectedTransport] = useState('bike');
   const [trafficResult, setTrafficResult] = useState('');
   const [showTrafficResult, setShowTrafficResult] = useState(false);
-  const [showPermissionDialog, setShowPermissionDialog] = useState(false);
+  const [showPermissionDialog, setShowPermissionDialog] = useState(true);//Change it later
   const [routeData, setRouteData] = useState(null);
   const [showAllSegments, setShowAllSegments] = useState(false);
   const [routes, setRoutes] = useState([]);
@@ -42,7 +43,7 @@ const MainContent = () => {
 
   useEffect(() => {
     setShowPermissionDialog(true);
-    
+
     // Initialize flatpickr for date and time inputs
     flatpickr("#date", {
       dateFormat: "d-m-Y",
@@ -126,7 +127,7 @@ const MainContent = () => {
       // We need to get the coordinates back from this address
       try {
         const reverseUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(place)}&format=json&limit=1`;
-        const resp = await fetch(reverseUrl, {headers: { 'Accept-Language': 'en' }});
+        const resp = await fetch(reverseUrl, { headers: { 'Accept-Language': 'en' } });
         const data = await resp.json();
         if (data && data.length > 0) {
           const result = data[0];
@@ -134,7 +135,7 @@ const MainContent = () => {
           const lat = parseFloat(result.lat);
           const lon = parseFloat(result.lon);
           if (lat >= 22.5 && lat <= 23.0 && lon >= 75.5 && lon <= 76.0) {
-            console.log(`Using coordinates from address: ${lat},${lon}`);
+            // console.log(`Using coordinates from address: ${lat},${lon}`);
             return `${lat},${lon}`;
           }
         }
@@ -146,7 +147,7 @@ const MainContent = () => {
     // Try to geocode online with more specific search
     const url = `https://nominatim.openstreetmap.org/search?city=Indore&state=Madhya%20Pradesh&country=India&q=${encodeURIComponent(place)}&format=json&limit=1&addressdetails=1`;
     try {
-      const resp = await fetch(url, {headers: { 'Accept-Language': 'en' }});
+      const resp = await fetch(url, { headers: { 'Accept-Language': 'en' } });
       const data = await resp.json();
       if (data && data.length > 0) {
         // Accept the result if it's in Madhya Pradesh (which includes Indore)
@@ -172,7 +173,7 @@ const MainContent = () => {
     // If not found, try a broader search without city restriction
     const broadUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(place + ' Indore')}&format=json&limit=1&addressdetails=1`;
     try {
-      const resp = await fetch(broadUrl, {headers: { 'Accept-Language': 'en' }});
+      const resp = await fetch(broadUrl, { headers: { 'Accept-Language': 'en' } });
       const data = await resp.json();
       if (data && data.length > 0) {
         const result = data[0];
@@ -208,13 +209,13 @@ const MainContent = () => {
     setShowAllSegments(false);
     try {
       console.log(`Geocoding source: "${source}"`);
-      const geocodedSource = await geocodePlace(source);
+      const geocodedSource = sourceLatLng || (await geocodePlace(source));
       console.log(`Source coordinates: ${geocodedSource}`);
-      
+
       console.log(`Geocoding destination: "${destination}"`);
-      const geocodedDestination = await geocodePlace(destination);
+      const geocodedDestination = destinationLatLng || (await geocodePlace(destination));
       console.log(`Destination coordinates: ${geocodedDestination}`);
-      
+
       const dateTimeStr = toISODateTime(date, time);
       const body = {
         source: geocodedSource,
@@ -222,34 +223,34 @@ const MainContent = () => {
         date_time: dateTimeStr,
         travel_mode: selectedTransport
       };
-      
+
       console.log('Sending route request with body:', body);
       console.log('Request URL:', `/api/routes/`);
-      
+
       const response = await fetch(`/api/routes/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
       });
-      
+
       console.log('Response status:', response.status);
       console.log('Response headers:', response.headers);
-      
+
       const data = await response.json();
       console.log('Route response data:', data);
-      
+
       if (!response.ok) {
         console.error('Response not ok:', response.status, data);
         setTrafficResult(`Error: ${data.error || 'Error fetching route'}`);
         return;
       }
-      
+
       if (!data || data.length === 0) {
         console.error('No route data received');
         setTrafficResult('Error: No route data received from server');
         return;
       }
-      
+
       console.log('Setting routes:', data);
       setRoutes(data);
       const bestIdx = data.findIndex(r => r.recommended) !== -1 ? data.findIndex(r => r.recommended) : 0;
@@ -262,33 +263,63 @@ const MainContent = () => {
     }
   };
 
+
+  const getNameFromCords = async (lat, lng) => {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`
+      const resp = await fetch(url)
+      const data = await resp.json()
+      return data.display_name
+    } catch (error) {
+      console.log({ error })
+      return null
+    }
+  }
+
   const handleMapClick = async (location) => {
     let lat = null, lng = null;
+
+    console.log({ location }, activeFieldRef.current)
     // If the location is already coordinates, parse them
     if (/^-?\d+\.\d+,-?\d+\.\d+$/.test(location)) {
       [lat, lng] = location.split(',').map(Number);
+      const name = await getNameFromCords(lat, lng)
+      console.log({ name })
+      if (name) {
+        if (activeFieldRef.current === 'source') {
+          setSourceLatLng(location)
+          console.log({})
+          setSource(name) };
+        if (activeFieldRef.current === 'destination') {
+          setDestinationLatLng(location)
+          setDestination(name)
+        }
+      }
     } else {
-      // If it's a place name, just set it (shouldn't happen for map click, but safe)
-      if (activeFieldRef.current === 'source') setSource(location);
-      else if (activeFieldRef.current === 'destination') setDestination(location);
-      // Clear previous routes and results
-      setRoutes([]);
-      setRouteData(null);
-      setSelectedRouteIdx(0);
-      setShowTrafficResult(false);
-      setTrafficResult('');
-      setShowAllSegments(false);
-      return;
+
+      // // // If it's a place name, just set it (shouldn't happen for map click, but safe)
+      // // if (activeFieldRef.current === 'source') setSource(location);
+      // // else if (activeFieldRef.current === 'destination') {
+      // //   setDestination(location)
+      // // };
+      // // Clear previous routes and results
+      // setRoutes([]);
+      // setRouteData(null);
+      // setSelectedRouteIdx(0);
+      // setShowTrafficResult(false);
+      // setTrafficResult('');
+      // setShowAllSegments(false);
+      // return;
     }
-    // Try to find the nearest known place
-    const nearestLocation = findNearestLocation(lat, lng);
-    if (nearestLocation) {
-      if (activeFieldRef.current === 'source') setSource(nearestLocation);
-      else if (activeFieldRef.current === 'destination') setDestination(nearestLocation);
-    } else {
-      if (activeFieldRef.current === 'source') setSource(location);
-      else if (activeFieldRef.current === 'destination') setDestination(location);
-    }
+    // // Try to find the nearest known place
+    // const nearestLocation = findNearestLocation(lat, lng);
+    // if (nearestLocation) {
+    //   if (activeFieldRef.current === 'source') setSource(nearestLocation);
+    //   else if (activeFieldRef.current === 'destination') setDestination(nearestLocation);
+    // } else {
+    //   if (activeFieldRef.current === 'source') setSource(location);
+    //   else if (activeFieldRef.current === 'destination') setDestination(location);
+    // }
     // Clear previous routes and results
     setRoutes([]);
     setRouteData(null);
@@ -330,7 +361,7 @@ const MainContent = () => {
     }
   };
 
-  console.log({date, time});
+  console.log({ date, time });
 
   function getTrafficPercentage(route) {
     if (!route || !route.segments || route.segments.length === 0) return "0%";
@@ -343,11 +374,11 @@ const MainContent = () => {
   return (
     <div id="mainContent">
       <header>TRAFFIC FORECASTING - INDORE</header>
-      <div style={{ 
-        background: '#fff3cd', 
-        padding: '8px', 
-        margin: '10px 0', 
-        borderRadius: '5px', 
+      <div style={{
+        background: '#fff3cd',
+        padding: '8px',
+        margin: '10px 0',
+        borderRadius: '5px',
         border: '1px solid #ffeaa7',
         fontSize: '13px',
         color: '#856404'
@@ -355,7 +386,7 @@ const MainContent = () => {
         💡 <strong>Tip:</strong> For the most accurate routing, click on the map to select your exact source and destination locations.
       </div>
 
-      
+
       <div className="form-container">
         <div className="input-group">
           <label htmlFor="source">Source</label>
@@ -534,19 +565,19 @@ const MainContent = () => {
 
       <div className="transport-section">
         <div className="transport-options">
-          <button 
+          <button
             className={selectedTransport === 'bike' ? 'active' : ''}
             onClick={() => handleTransportChange('bike')}
           >
             Bike
           </button>
-          <button 
+          <button
             className={selectedTransport === 'car' ? 'active' : ''}
             onClick={() => handleTransportChange('car')}
           >
             Car
           </button>
-          <button 
+          <button
             className={selectedTransport === 'walk' ? 'active' : ''}
             onClick={() => handleTransportChange('walk')}
           >
@@ -611,7 +642,7 @@ const MainContent = () => {
                 setRouteData(routes[idx]);
               }}
             >
-              {r.route_name} <br/>({r.total_distance_km} km, {r.total_time_min} min){r.recommended ? ' [Fastest]' : ''}
+              {r.route_name} <br />({r.total_distance_km} km, {r.total_time_min} min){r.recommended ? ' [Fastest]' : ''}
             </button>
           ))}
         </div>
@@ -628,15 +659,18 @@ const MainContent = () => {
         </div>
       )}
 
-      <TrafficMap 
-        routeData={routeData} 
+      <TrafficMap
+        routeData={routeData}
         routes={routes}
         selectedRouteIdx={selectedRouteIdx}
         onRouteClick={(idx) => {
           setSelectedRouteIdx(idx);
           setRouteData(routes[idx]);
         }}
-        onMapClick={handleMapClick} 
+        onMapClick={(e) => {
+          console.log({ e })
+          handleMapClick(e)
+        }}
       />
 
       <footer>🌍 Made with ❤️ for Indore | Demo UI</footer>
