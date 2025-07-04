@@ -10,5 +10,6 @@ npm start
 backend run:-
 cd backend
 venv\Scripts\activate
-python manage.py runserver
+
+
 

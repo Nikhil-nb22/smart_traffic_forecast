@@ -1,4 +1,5 @@
 import React from 'react';
+import { findNearestLocation } from '../utils/locations';
 
 const PermissionDialog = ({ onPermission }) => {
   // Helper to reverse geocode lat/lng to a place name
@@ -21,8 +22,25 @@ const PermissionDialog = ({ onPermission }) => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(async (position) => {
         const { latitude, longitude } = position.coords;
-        const placeName = await getPlaceName(latitude, longitude);
-        onPermission(true, placeName);
+        console.log(`PermissionDialog - Current location: ${latitude}, ${longitude}`);
+        // Try to find the nearest predefined location name (within 500m)
+        const nearestLocation = findNearestLocation(latitude, longitude);
+        if (nearestLocation) {
+          onPermission(true, nearestLocation);
+        } else {
+          // Try to get a human-readable address from OSM
+          try {
+            const url = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`;
+            const resp = await fetch(url);
+            const data = await resp.json();
+            if (data && data.display_name) {
+              onPermission(true, data.display_name);
+              return;
+            }
+          } catch (e) { /* ignore */ }
+          // Fallback to coordinates
+          onPermission(true, `${latitude.toFixed(6)},${longitude.toFixed(6)}`);
+        }
       }, () => {
         onPermission(true, null);
       }, { enableHighAccuracy: true });

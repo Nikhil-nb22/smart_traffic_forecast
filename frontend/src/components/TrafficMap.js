@@ -22,13 +22,23 @@ const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick, onMapCl
       // Add click event listener to the map
       mapInstanceRef.current.on('click', (e) => {
         const { lat, lng } = e.latlng;
-        // Find the nearest location
+        console.log(`Map clicked at: ${lat}, ${lng}`);
+        
+        // First check if this location has a predefined name
         const nearestLocation = findNearestLocation(lat, lng);
-        if (onMapClick) {
-          if (nearestLocation) {
+        
+        if (nearestLocation) {
+          // If a predefined location is found nearby, use the location name
+          console.log(`Found predefined location: ${nearestLocation}`);
+          if (onMapClick) {
             onMapClick(nearestLocation);
-          } else {
-            onMapClick(`${lat.toFixed(6)},${lng.toFixed(6)}`);
+          }
+        } else {
+          // If no predefined location found, use exact coordinates
+          const exactCoords = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+          console.log(`No predefined location found, using exact coordinates: ${exactCoords}`);
+          if (onMapClick) {
+            onMapClick(exactCoords);
           }
         }
       });
@@ -118,6 +128,8 @@ const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick, onMapCl
       }
     } else if (routeData && mapInstanceRef.current) {
       console.log("Drawing route on map with", routeData.segments.length, "segments");
+      console.log("Route data:", routeData);
+      console.log("Route segments:", routeData.segments);
       
       // Remove previous route and markers
       routePolylineGroupRef.current.forEach(l => mapInstanceRef.current.removeLayer(l));
@@ -182,6 +194,8 @@ const TrafficMap = ({ routeData, routes, selectedRouteIdx, onRouteClick, onMapCl
       const dst = routeData.segments[routeData.segments.length-1];
       console.log("Adding source marker at:", src.latitude_start, src.longitude_start);
       console.log("Adding dest marker at:", dst.latitude_end, dst.longitude_end);
+      console.log("Source segment:", src);
+      console.log("Destination segment:", dst);
       
       sourceMarkerRef.current = L.marker([src.latitude_start, src.longitude_start], {
         icon: getSvgIcon('red')
